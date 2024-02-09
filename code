@@ -1,0 +1,102 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
+#include <unordered_map>
+#include <cmath>
+
+using namespace std;
+
+vector<string> tokenize(const string &str) {
+    vector<string> tokens;
+    stringstream ss(str);
+    string token;
+    while (ss >> token) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+unordered_map<string, double> calculateTF(const string &document) {
+    unordered_map<string, double> tf;
+    vector<string> words = tokenize(document);
+    double totalWords = words.size();
+    for (const string &word : words) {
+        tf[word] += 1.0 / totalWords;
+    }
+    return tf;
+}
+
+unordered_map<string, double> calculateIDF(const vector<string> &documents) {
+    unordered_map<string, double> idf;
+    unordered_map<string, bool> counted;
+    double totalDocuments = documents.size();
+    for (const string &document : documents) {
+        vector<string> words = tokenize(document);
+        for (const string &word : words) {
+            if (!counted[word]) {
+                idf[word] += 1.0;
+                counted[word] = true;
+            }
+        }
+        counted.clear();
+    }
+    for (auto &pair : idf) {
+        pair.second = log(totalDocuments / pair.second);
+    }
+    return idf;
+}
+
+unordered_map<string, double> calculateTFIDF(const unordered_map<string, double> &tf, const unordered_map<string, double> &idf) {
+    unordered_map<string, double> tfidf;
+    for (const auto &pair : tf) {
+        tfidf[pair.first] = pair.second * idf.at(pair.first);
+    }
+    return tfidf;
+}
+
+double cosineSimilarity(const unordered_map<string, double> &tfidf1, const unordered_map<string, double> &tfidf2) {
+    double dotProduct = 0.0;
+    double magnitude1 = 0.0;
+    double magnitude2 = 0.0;
+
+    for (const auto &pair : tfidf1) {
+        if (tfidf2.count(pair.first)) {
+            dotProduct += pair.second * tfidf2.at(pair.first);
+        }
+        magnitude1 += pow(pair.second, 2);
+    }
+
+    for (const auto &pair : tfidf2) {
+        magnitude2 += pow(pair.second, 2);
+    }
+
+    magnitude1 = sqrt(magnitude1);
+    magnitude2 = sqrt(magnitude2);
+
+    return dotProduct / (magnitude1 * magnitude2);
+}
+
+int main() {
+    vector<string> documents = {
+        "This is the first document.",
+        "This document is the second document.",
+        "And this is the third one.",
+        "Is this the first document?",
+    };
+
+    vector<unordered_map<string, double>> tfidfDocuments;
+
+    for (const string &document : documents) {
+        unordered_map<string, double> tf = calculateTF(document);
+        unordered_map<string, double> idf = calculateIDF(documents);
+        unordered_map<string, double> tfidf = calculateTFIDF(tf, idf);
+        tfidfDocuments.push_back(tfidf);
+    }
+
+    // Compare two documents, for example, first and second
+    double similarity = cosineSimilarity(tfidfDocuments[0], tfidfDocuments[1]);
+    cout << "Cosine similarity between first and second documents: " << similarity << endl;
+
+    return 0;
+}
